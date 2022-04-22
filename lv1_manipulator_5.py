@@ -13,34 +13,33 @@ from PIL import Image
 # from skimage import feature
 # from skimage.transform import hough_line, hough_line_peaks
 
-
 # TASK 0
 class tool():
 	def __init__(self, scene):
 		s = scene	
-		self.finger1 = vis.cube(0.04, 0.06, 0.08)
+		self.finger1 = vis.cube(0.04, 0.04, 0.08)
 		s.add_actor(self.finger1)
-		self.finger2 = vis.cube(0.04, 0.06, 0.08)
+		self.finger2 = vis.cube(0.04, 0.04, 0.08)
 		s.add_actor(self.finger2)
-		self.palm = vis.cube(0.04, 0.25, 0.02)
+		self.palm = vis.cube(0.04, 0.25, 0.04)
 		s.add_actor(self.palm)
-		self.wrist = vis.cylinder(0.015, 0.04)
+		self.wrist = vis.cylinder(0.02, 0.0305)
 		s.add_actor(self.wrist)
 		
 	def set_configuration(self, g, TGS):	
 		TF1G = np.identity(4)
-		TF1G[:3,3] = np.array([0, -0.095, -0.03])
+		TF1G[:3,3] = np.array([0, -0.105, 0])
 		TF1S = TGS @ TF1G
 		vis.set_pose(self.finger1, TF1S)
 		TF2G = np.identity(4)
-		TF2G[:3,3] = np.array([0, 0.095, -0.03])	
+		TF2G[:3,3] = np.array([0, 0.105, 0])	
 		TF2S = TGS @ TF2G
 		vis.set_pose(self.finger2, TF2S)
 		TPG = np.identity(4)
-		TPG[:3,3] = np.array([0, 0, -0.065])
+		TPG[:3,3] = np.array([0, 0, -0.06])
 		TPS = TGS @ TPG
 		vis.set_pose(self.palm, TPS)
-		TWG = np.block([[rotx(np.pi/2), np.array([[0], [0], [-0.08]])], [np.zeros((1, 3)), 1]])
+		TWG = np.block([[rotx(np.pi/2), np.array([[0], [0], [-0.09525]])], [np.zeros((1, 3)), 1]])
 		TWS = TGS @ TWG
 		vis.set_pose(self.wrist, TWS)
 
@@ -71,11 +70,11 @@ def task0():
 	s = vis.visualizer()
 
 	# Axes.
-	#axes = vtk.vtkAxesActor()
+	axes = vtk.vtkAxesActor()
 	#s.add_actor(axes)
 	
 	# Floor.
-	set_floor(s, [1, 1])
+	set_floor(s, [2, 2])
 
 	# Cube.
 	cube = vis.cube(0.03, 0.03, 0.03)
@@ -97,9 +96,13 @@ def task0():
 # TASK 1
 class robot():
 	def __init__(self, scene):
-		#kinematic parameters:
+		# q = np.zeros(6)
+		# d = np.array([0, 0, 0, -0.065, 0, 0.11])
+		# a = np.array([0, 0.25, 0.25, 0, 0, 0])
+		# al = np.array([np.pi/2, 0, 0, np.pi/2, np.pi/2, 0])
+
 		q = np.array([np.pi/2, -np.pi/2, np.pi/2, 0, 0, -np.pi/2])
-		d = np.array([0, 0, 0, 0.6, 0, 0.3105])
+		d = np.array([0, 0, 0, 0.605, 0, 0.3905])
 		a = np.array([0, 0.6, 0.0, 0, 0, 0])
 		al = np.array([-np.pi/2, 0, np.pi/2, -np.pi/2, np.pi/2, 0])
 
@@ -109,19 +112,31 @@ class robot():
 
 		
 		# Base.
-		#self.base = vis.cylinder(0.025, 0.05)
-		self.base = vis.cube(0.28, 0.28, 0.225)
+		self.base = vis.cube(0.28, 0.28, 0.225) #redoslijed osi kao u KS L0
 		s.add_actor(self.base)	
 
 		# Link 1.
-		#self.link1 = vis.cylinder(0.025, 0.05)
-		self.link1 = vis.cube(0.24, 0.225, 0.24)
+		self.link1 = vis.cube(0.24, 0.225, 0.24) #redoslijed osi kao u KS L1 
 		s.add_actor(self.link1)	
 		
-		#Link 2, Link 3...
+		# Link 2.
+		self.link2 = vis.cube(0.6, 0.22, 0.22) #redoslijed osi kao u KS L2
+		s.add_actor(self.link2)
+
+		# Link 3.
+		self.link3 = vis.cube(0.24, 0.24, 0.23) #redoslijed osi kao u KS L3 
+		s.add_actor(self.link3)
+		
+		# # Link 4.
+		self.link4 = vis.cube(0.15, 0.49, 0.15) #redoslijed osi kao u KS L4 
+		s.add_actor(self.link4)	
+		
+		# Link 5.
+		self.link5 = vis.cube(0.04, 0.04, 0.28) #redoslijed osi kao u KS L5
+		s.add_actor(self.link5)		
 		
 		# Tool.
-
+		self.tool = tool(s)
 		
 	def set_configuration(self, q, g, T0S):
 		d = self.DH[:,1]
@@ -130,28 +145,59 @@ class robot():
 		
 		# Base.
 		TB0 = np.identity(4)
-		#TB0[:3,:3] = rotx(np.pi/2)
-		TB0[2,3] = -0.18
+		TB0[2,3] = -0.225
 		TBS = T0S @ TB0
 		vis.set_pose(self.base, TBS)
 
 		# Link 1.
-		T10 = dh(q[0], d[0], a[0], al[0]) #todo: create dh function
+		T10 = dh(q[0], d[0], a[0], al[0])
 		T1S = T0S @ T10
 		TL11 = np.identity(4)
-		#TL11[:3,:3] = rotx(np.pi/2)	
 		TL1S = T1S @ TL11
 		vis.set_pose(self.link1, TL1S)
 		
-		#Link 2, Link 3...
+		# Link 2.
+		T21 = dh(q[1], d[1], a[1], al[1])
+		T2S = T1S @ T21	
+		TL22 = np.identity(4)	
+		TL22[0,3] = -0.3
+		TL22[2,3] = 0.23
+		TL2S = T2S @ TL22
+		vis.set_pose(self.link2, TL2S)
+
+		# Link 3.
+		T32 = dh(q[2], d[2], a[2], al[2])
+		T3S = T2S @ T32	
+		TL33 = np.identity(4)
+		TL3S = T3S @ TL33
+		vis.set_pose(self.link3, TL3S)
 		
-		return TBS	
+		# Link 4.
+		T43 = dh(q[3], d[3], a[3], al[3])
+		T4S = T3S @ T43	
+		TL44 = np.identity(4)
+		TL44[1,3] = 0.245
+		TL4S = T4S @ TL44
+		vis.set_pose(self.link4, TL4S)
+		
+		# Link 5.
+		T54 = dh(q[4], d[4], a[4], al[4])
+		T5S = T4S @ T54	
+		TL55 = np.identity(4)
+		TL55[2,3] = 0.140
+		TL5S = T5S @ TL55
+		vis.set_pose(self.link5, TL5S)
+		
+		# Link 6.
+		T65 = dh(q[5], d[5], a[5], al[5])
+		T6S = T5S @ T65	
+		self.tool.set_configuration(g, T6S)
+		
+		return T6S	
 
 	
 
 def dh(q, d, a, al):
-
-	#Define cq, sq, ca, sa and T
 	cq = np.cos(q)
 	sq = np.sin(q)
 	ca = np.cos(al)
@@ -160,7 +206,6 @@ def dh(q, d, a, al):
 		[sq, cq*ca, -cq*sa, a*sq],
 		[0, sa, ca, d],
 		[0, 0, 0, 1]])
-	return T
 	return T
 
 def task1(q):
@@ -176,7 +221,7 @@ def task1(q):
 	
 	# Robot.
 	T0S = np.identity(4)
-	T0S[2,3] = 0.345
+	T0S[2,3] = 0.3375
 	rob = robot(s)
 	rob.set_configuration(q, 0.03, T0S)
 	
@@ -185,7 +230,9 @@ def task1(q):
 
 def main():
 	#task0()
-	task1([0, np.pi/2, -np.pi/2, 0, 0, 0])
+	#task1([0, 0, np.pi/2, 0, np.pi/2, 0])
+	task1([np.pi/2, -np.pi/2, np.pi/2, 0, 0, -np.pi/2])
+
 
 
 if __name__ == '__main__':

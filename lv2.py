@@ -2,16 +2,16 @@ import sys
 import numpy as np
 import vtk
 import matplotlib.pyplot as plt
-import libraries.vtk_visualizer as vis
+import vtk_visualizer as vis
 #import br_lectures as br
-# from libraries.hocook import hocook
-# from libraries.planecontact import planecontact
-# from libraries.mobrobsim import mobrobsimanimate, set_goal, set_map
+from hocook import hocook
+from planecontact import planecontact
+from mobrobsim import mobrobsimanimate, set_goal, set_map
 from scipy import ndimage
 from PIL import Image
-# from libraries.camerasim import CameraSimulator
-# from skimage import feature
-# from skimage.transform import hough_line, hough_line_peaks
+from camerasim import CameraSimulator
+from skimage import feature
+from skimage.transform import hough_line, hough_line_peaks
 
 # TASK 0
 class tool():
@@ -217,9 +217,59 @@ def task1(q):
 	# Render scene.
 	s.run()	
 
+
+# TASK 2
+
+def invkin(DH, T60, solution):
+	d = DH[:,1]
+	a = DH[:,2]
+	al = DH[:,3]
+	
+	p = T60 @ np.expand_dims(np.array([0, 0, -d[5], 1]), 1)
+	x = p[0]
+	y = p[1]
+	z = p[2]
+	r = p[:3].T @ p[:3]
+	
+	q = np.zeros(6)
+	
+	# q[2]....
+	
+	return q
+
+def task2(solution):
+	TTS = np.identity(4)
+	TTS[0,3]=0.3
+	TTS[2,3] = 0.1
+	
+	# Scene
+	s = vis.visualizer()
+
+	# Floor.
+	set_floor(s, [1, 1])
+	
+	# Target object.
+	target = vis.cube(0.03, 0.03, 0.03) #change size
+	vis.set_pose(target, TTS)
+	s.add_actor(target)	
+
+	# Robot.
+	T0S = np.identity(4)
+	T0S[2,3] = 0.05
+	T6T = np.identity(4)
+	T6T[:3,:3] = roty(np.pi)
+	T60 = np.linalg.inv(T0S) @ TTS @ T6T
+	rob = robot(s)
+	q = invkin(rob.DH, T60, solution)
+	rob.set_configuration(q, 0.03, T0S)
+	
+	# Render scene.
+	s.run()
+
 def main():
 	#task0()
-	task1([0, np.pi/2, -np.pi/2, 0, 0, 0])
+	#task1([0, np.pi/2, -np.pi/2, 0, 0, 0])
+	task2([0, 1, 0])
 
 
 if __name__ == '__main__':

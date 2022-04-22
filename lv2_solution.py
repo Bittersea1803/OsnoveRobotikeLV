@@ -2,16 +2,16 @@ import sys
 import numpy as np
 import vtk
 import matplotlib.pyplot as plt
-import libraries.vtk_visualizer as vis
+import vtk_visualizer as vis
 #import br_lectures as br
-# from libraries.hocook import hocook
-# from libraries.planecontact import planecontact
-# from libraries.mobrobsim import mobrobsimanimate, set_goal, set_map
+from hocook import hocook
+from planecontact import planecontact
+from mobrobsim import mobrobsimanimate, set_goal, set_map
 from scipy import ndimage
 from PIL import Image
-# from libraries.camerasim import CameraSimulator
-# from skimage import feature
-# from skimage.transform import hough_line, hough_line_peaks
+from camerasim import CameraSimulator
+from skimage import feature
+from skimage.transform import hough_line, hough_line_peaks
 
 # TASK 0
 class tool():
@@ -217,9 +217,110 @@ def task1(q):
 	# Render scene.
 	s.run()	
 
+
+# TASK 2
+
+def invkin(DH, T60, solution):
+	d = DH[:,1]
+	a = DH[:,2]
+	al = DH[:,3]
+	
+	p = T60 @ np.expand_dims(np.array([0, 0, -d[5], 1]), 1)
+	x = p[0]
+	y = p[1]
+	z = p[2]
+	r = p[:3].T @ p[:3]
+	
+	q = np.zeros(6)
+	
+	q[2] = np.arccos((r - a[2]**2 - d[3]**2 - a[1]**2) / (2*a[1]*a[2]))
+	if solution[0] == 1:
+		q[2] = -q[2]
+		
+	c3 = np.cos(q[2])
+	s3 = np.sin(q[2])
+	f1 = a[2]*c3 + a[1]
+	
+	f2 = a[2]*s3
+	
+	f3 = d[3]
+	
+	A = np.sqrt(f1**2+f2**2)
+	phi = np.arctan2(f2, f1)
+	if solution[1] == 0:
+		q[1] = np.arcsin(z/A) - phi
+	else:
+		q[1] = np.pi - np.arcsin(z/A) - phi
+	
+
+	c2 = np.cos(q[1])
+	s2 = np.sin(q[1])
+	g1 = c2*f1 - s2*f2
+		
+	g2 = -f3
+	
+	c1 = g1*x + g2*y
+	s1 = -g2*x + g1*y
+	q[0] = np.arctan2(s1, c1)
+	
+	T10 = dh(q[0], d[0], a[0], al[0])
+	T21 = dh(q[1], d[1], a[1], al[1])
+	T32 = dh(q[2], d[2], a[2], al[2])
+	T30 = T10 @ T21 @ T32
+	R30 = T30[:3,:3]
+	R60 = T60[:3,:3]
+	R63 = R30.T @ R60
+	
+	c5 = -R63[2,2]
+	q[4] = np.arccos(c5)
+	if solution[2] == 1:
+		q[4] = -q[4]
+	s5 = np.sin(q[4])
+	if np.abs(s5) > 1e-10:
+		q[3] = np.arctan2(R63[1,2]/s5, R63[0,2]/s5)
+		q[5] = np.arctan2(-R63[2,1]/s5, R63[2,0]/s5)
+	else:
+		c46 = R63[0,0]
+		s46 = R63[0,1]
+		q46 = np.arctan2(s46, c46)
+		q[3] = q46
+		q[5] = 0
+	
+	return q
+
+def task2(solution):
+	TTS = np.identity(4)
+	TTS[0,3]=0.3
+	TTS[2,3] = 0.1
+	
+	# Scene
+	s = vis.visualizer()
+
+	# Floor.
+	set_floor(s, [1, 1])
+	
+	# Target object.
+	target = vis.cube(0.03, 0.03, 0.03) #change size
+	vis.set_pose(target, TTS)
+	s.add_actor(target)	
+
+	# Robot.
+	T0S = np.identity(4)
+	T0S[2,3] = 0.05
+	T6T = np.identity(4)
+	T6T[:3,:3] = roty(np.pi)
+	T60 = np.linalg.inv(T0S) @ TTS @ T6T
+	rob = robot(s)
+	q = invkin(rob.DH, T60, solution)
+	rob.set_configuration(q, 0.03, T0S)
+	
+	# Render scene.
+	s.run()
+
 def main():
 	#task0()
-	task1([0, np.pi/2, -np.pi/2, 0, 0, 0])
+	#task1([0, np.pi/2, -np.pi/2, 0, 0, 0])
+	task2([0, 1, 0])
 
 
 if __name__ == '__main__':
